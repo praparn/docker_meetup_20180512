@@ -1,0 +1,107 @@
+Instruction for Docker MeetUp 29/03/2019:
+====================================================
+Part 1: Set environment for Docker for MAC
+====================================================
+1. Get context environment of existing kubectl by command: kubectl config get-contexts
+
+2. Set environment of existing kubectl by command: kubectl config use-context docker-for-desktop
+
+3. Deploy K8S dashboard by command: 
+    kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+
+4. Check status of pods by command:
+    kubectl get pod --namespace=kube-system | grep dashboard
+    --------------------------------------------------
+    Example Result: kubernetes-dashboard-7798c48646-vb8jr        1/1       Running   0          21s 
+    --------------------------------------------------
+
+5. Forward Port from MAC to specific pods:
+    kubectl port-forward <pods name from no.4> 8443:8443 --namespace=kube-system ==> *This not recommend for product* (For Debug Only)
+
+6. Open web browser and check dashboard url: https://127.0.0.1:8443
+
+7. Enable Metric Server:
+	git clone https://github.com/kubernetes-incubator/metrics-server.git
+	cd metrics-server/
+	kubectl create -f deploy/1.8+/
+    kubectl get pods --all-namespaces
+
+====================================================
+Part 2: Create Web Demo for Test
+====================================================
+1. Create Namespace by command:
+	kubectl create -f https://raw.githubusercontent.com/praparn/docker_meetup_20180329/master/webtest_deploy_hpa.yml
+	 
+2. Check Pods status by command:
+	kubectl get deployment/webtest -o wide
+	kubectl get svc/webtest -o wide
+
+3. Test Access by url:
+	http://127.0.0.1:32500
+
+
+====================================================
+Part 3: Create HPA
+====================================================
+1. Create HPA (Horizantal Pods autoscale) with cpu target 10% by command:
+	kubectl autoscale deployment/webtest --min=1 --max=10 --cpu-percent=10 
+	 
+2. Check HPA status by command: (Wait 5 min)
+	kubectl get hpa
+	kubectl describe hpa/webtest
+
+3. Check Dashboard for HPA Operate:
+	http://127.0.0.1:32500
+
+
+====================================================
+Part 4: Generate Load Test
+====================================================
+1. Create load-generator deployment by command:
+	kubectl run -i --tty load-generator --image=busybox /bin/sh
+
+2. Test get webtest by command:
+    wget -q -O- http://webtest.default.svc.cluster.local:5000
+
+3. Initial Loop Test by command:
+    while true; sleep 0.01; do wget -q -O- http://webtest.default.svc.cluster.local:5000; done
+  
+
+====================================================
+Part 5: Monitor Load and Check HPA (Scale Up) (5 - 15 min)
+====================================================
+1. Monitor Load and HPA by command:
+	kubectl top nodes
+    kubectl top pods
+    kubectl get hpa
+    kubectl describe hpa/webtest
+
+    Dashboard: https://127.0.0.1:8443
+
+====================================================
+Part 6. Cut Load and Check HPA (Scale Down) (5 - 15 min)
+====================================================
+1. Cut load from load-generator by command: Ctrl+C and exit
+
+2. Monitor Load and HPA by command:
+	kubectl top nodes
+    kubectl top pods
+    kubectl get hpa
+    kubectl describe hpa/webtest
+
+    Dashboard: https://127.0.0.1:8443
+
+
+====================================================
+Part 7. CleanUp Lab
+====================================================
+1. Delete hpa ,pods and load generator by command:
+    kubectl delete hpa/webtest
+    kubectl delete -f https://raw.githubusercontent.com/praparn/docker_meetup_20180329/master/webtest_deploy_hpa.yml
+    kubectl delete deployment/load-generator
+
+2. Delete metric server by command:
+    kubectl delete -f deploy/1.8+/
+
+3. Delete dashboard by command:
+    kubectl delete -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml

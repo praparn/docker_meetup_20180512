@@ -1,0 +1,118 @@
+Instruction for Docker MeetUp 14/05/2019:
+====================================================
+Part 1: Set environment for Docker for MAC
+====================================================
+1. Get context environment of existing kubectl by command: kubectl config get-contexts
+
+2. Set environment of existing kubectl by command: kubectl config use-context docker-for-desktop
+
+3. Deploy K8S dashboard by command: 
+    kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+
+4. Check status of pods by command:
+    kubectl get pod --namespace=kube-system | grep dashboard
+    --------------------------------------------------
+    Example Result: kubernetes-dashboard-7798c48646-vb8jr        1/1       Running   0          21s 
+    --------------------------------------------------
+
+5. Forward Port from MAC to specific pods:
+    kubectl port-forward <pods name from no.4> 8443:8443 --namespace=kube-system
+
+6. Open web browser and check dashboard url: http://127.0.0.1:8443
+
+====================================================
+Part 2: Deploy simple appliction and compare with simple docker method
+====================================================
+
+1. Access to current path and create pods/service by command
+    kubectl create -f webtest_pod.yml
+    kubectl create -f webtest_svc.yml
+
+2. Check service avaliable and pods by command
+    kubectl get pods
+    kubectl get svc     ==> Check Port Result
+    ---------------------------------------------------
+	Example: Port mapping outside on TCP:32140
+	---------------------------------------------------
+    NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)          AGE
+    kubernetes   ClusterIP   10.96.0.1      <none>        443/TCP          1h
+    webtest      NodePort    10.99.118.45   <none>        5000:32140/TCP   6s
+	---------------------------------------------------
+
+
+3. Open web browser and check pods url: http://127.0.0.1:xxxx ==> Port from No.2
+
+4. Check and assessment for pods "webtest" by command:
+    kubectl exec -it webtest -c webtest sh
+    more mainlite.py
+    exit
+    kubectl get pods
+    kubectl get svc
+
+(open new tab)
+5. Create container by native docker command:
+    docker container run -dt --name webtest -p 5000:5000 labdocker/cluster:webservicelite
+    docker container ps |grep labdocker/cluster:webservicelite
+
+6. Open web browser and chek result by url: http://127.0.0.1:5000
+
+7. Clean Up lab by command:
+
+    # For Kubernetes
+    kubectl delete -f webtest_svc.yml
+    kubectl delete -f webtest_pod.yml
+
+    # For Docker Native
+    docker container stop webtest
+    docker container rm webtest
+
+====================================================
+Part 3: Deploy example compose appliction with K8S and Swarm (Docker-machine)
+====================================================
+
+#### Docker for MAC ####
+1. Download compose file by command:
+    curl https://raw.githubusercontent.com/praparn/docker_meetup_201890111/master/compose_example.yml > compose_example.yml
+
+2. Deploy compose_example.yml on K8S by command:
+    docker stack deploy --compose-file compose_example.yml k8stack
+
+3. Check service avaliable and pods by command
+    docker stack ls
+    docker stack services k8stack
+    docker stack ps k8stack
+
+    kubectl get pods            ==> Portion Command for K8S
+    kubectl get svc             ==> Portion Command for K8S
+
+4. Open web browser and check result by url: http://127.0.0.1
+
+5. Clean up by command: 
+    docker stack rm k8stack
+    kubectl delete -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+
+#### Docker-Machine: Labdocker (Linux with Swarm) ####
+1. Initial Swarm and check swarm by command:
+    docker swarm init --advertise-addr 192.168.99.100:2377 --task-history-limit 2
+    docker node ls
+
+2. Download compose file by command:
+    curl https://raw.githubusercontent.com/praparn/docker_meetup_201890111/master/compose_example.yml > compose_example.yml
+
+3. Deploy compose_example.yml on K8S by command:
+    docker stack deploy --compose-file compose_example.yml swarmstack
+
+4. Check service avaliable and pods by command
+    docker stack ls
+    docker stack services swarmstack
+    docker stack ps swarmstack
+
+    docker service ls           ==> Portion Command for Swarm
+    docker service ps swarmstack_db         ==> Portion Command for K8S
+    docker service ps swarmstack_web        ==> Portion Command for K8S
+    docker service ps swarmstack_words      ==> Portion Command for K8S
+
+5. Open web browser and check result by url: http://192.168.99.100
+
+6. clean up by command: 
+    docker stack rm swarmstack
